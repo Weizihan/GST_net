@@ -1,0 +1,29 @@
+# ---- 构建产物 ----
+/build/
+/build_release/
+/output/
+cmake-build-*/
+compile_commands.json
+*.o
+*.a
+*.so
+
+# ---- 旧版本备份 ----
+all.tar
+*.tar
+
+# ---- 编辑器 / IDE ----
+.vscode/
+.idea/
+*.swp
+*~
+
+# ---- 本地工具配置 ----
+.claude/
+
+# ---- 个人协作规范（含个人目标，默认不公开；想公开就删掉这行）----
+CLAUDE.md
+
+# ---- 过程文档（个人记录，暂不公开）----
+CODE_WALKTHROUGH.md
+DEBUG_NOTES.md
