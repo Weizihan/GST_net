@@ -19,8 +19,6 @@ public:
 
     EnginePtr get_next_loop();
 
-    EnginePtr add_fd_callback(BASE::FdPtr fd, Task task);
-
 private:
     struct Worker {
         EnginePtr engine;

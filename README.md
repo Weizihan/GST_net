@@ -29,7 +29,7 @@
 ## 目录结构
 
 ```
-GST_rpc/
+GST_net/
 ├── CMakeLists.txt              # FetchContent 拉取日志库 GST_log
 ├── main.cpp                    # 示例：echo 服务器
 ├── test_server.py             # 9 项压测/边界测试（裸 socket 自己讲协议）

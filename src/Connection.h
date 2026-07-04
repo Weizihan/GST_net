@@ -33,7 +33,7 @@ public:
     Connection() = default;
     ~Connection() = default;
 
-    bool init(SocketPtr socket, const ConnectionCallbacks* cbs);
+    bool init(SocketPtr socket, BASE::EventLoopEngine* engine, const ConnectionCallbacks* cbs);
 
     bool send(const std::string& data);
 

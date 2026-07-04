@@ -24,9 +24,9 @@ public:
     // 设置新连接到来时的回调（在回调里执行 accept）
     void set_accept_callback(std::function<void(int)> cb);
 
-    // 把一条连接的 fd + 读回调注册到某个 worker engine，返回被选中的家 engine
-    BASE::EnginePtr add_fd_callback(BASE::FdPtr fd, const std::function<void(int)>& callback) {
-        return _eventloop_pool.add_fd_callback(fd, callback);
+    // 线程池按 round-robin 为新连接选一个 worker engine 作为它的家
+    BASE::EnginePtr get_engine() {
+        return _eventloop_pool.get_next_loop();
     }
 
 private:

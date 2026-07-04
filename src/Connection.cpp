@@ -6,12 +6,13 @@
 namespace GST {
 namespace NET {
 
-bool Connection::init(SocketPtr socket, const ConnectionCallbacks* cbs) {
+bool Connection::init(SocketPtr socket, BASE::EventLoopEngine* engine, const ConnectionCallbacks* cbs) {
     if (!socket || !socket->is_avai()) {
         return false;
     }
     _socket = socket;
     _cbs_ptr = cbs;
+    _owner_engine = engine;
     return true;
 }
 

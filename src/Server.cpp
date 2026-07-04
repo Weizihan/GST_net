@@ -42,8 +42,9 @@ void Server::on_new_connection() {
         return;
     }
 
+    auto engine = _loop.get_engine();
     auto conn = std::make_shared<Connection>();
-    if (!conn->init(client, &_shared_cbs)) {
+    if (!conn->init(client, engine.get(), &_shared_cbs)) {
         return;
     }
 
@@ -54,14 +55,13 @@ void Server::on_new_connection() {
     });
 
     std::weak_ptr<Connection> weak = conn;
-    auto engine = _loop.add_fd_callback(client, [weak](int) {
+    if ( !engine->add_fd_callback(client, [weak](int) {
         if (auto c = weak.lock()) {
             c->handle_read();
         }
-    });
-
-    // engine 即线程池为这条连接选中的家;Connection 后续 send 把写任务抛回它
-    conn->set_owner_engine(engine.get());
+    })) {
+        ERROR("failed add %d callback", client->fd());
+    }
 
     {
         std::lock_guard<std::mutex> lock(_conn_mutex);

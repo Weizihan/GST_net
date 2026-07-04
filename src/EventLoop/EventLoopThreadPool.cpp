@@ -29,11 +29,5 @@ EnginePtr EventLoopThreadPool::get_next_loop() {
     return loop;
 }
 
-EnginePtr EventLoopThreadPool::add_fd_callback(BASE::FdPtr fd, Task task) {
-    auto loop = get_next_loop();
-    loop->add_fd_callback(fd, std::move(task));
-    return loop;
-}
-
 }
 }
