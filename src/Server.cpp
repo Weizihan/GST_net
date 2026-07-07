@@ -1,10 +1,13 @@
 #include "Server.h"
+#include "LengthHeaderCodec.h"
 #include "GstLog.h"
 
 namespace GST {
 namespace NET {
 
-Server::Server() : _running(false) {}
+Server::Server() : _running(false) {
+    _codec = std::make_unique<LengthHeaderCodec>();
+}
 
 Server::~Server() {
     stop();
@@ -44,7 +47,7 @@ void Server::on_new_connection() {
 
     auto engine = _loop.get_engine();
     auto conn = std::make_shared<Connection>();
-    if (!conn->init(client, engine.get(), &_shared_cbs)) {
+    if (!conn->init(client, engine.get(), &_shared_cbs, _codec.get())) {
         return;
     }
 

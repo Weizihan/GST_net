@@ -7,15 +7,12 @@
 #include "Socket.h"
 #include "Buffer.h"
 
-// 单条消息长度上限，防止对方用伪造的超大长度头把 _recv_buf 撑爆（OOM DoS）。
-// 暂定 16MB，后续接入配置库后改成可配置项。
-const int MAX_MESSAGE_SIZE = 16 * 1024 * 1024;
-
 namespace GST {
 namespace BASE { class EventLoopEngine; }
 namespace NET {
 class Server;
 class Connection;
+class Codec;
 using ConnectionPtr = std::shared_ptr<Connection>;
 
 struct ConnectionCallbacks {
@@ -33,7 +30,7 @@ public:
     Connection() = default;
     ~Connection() = default;
 
-    bool init(SocketPtr socket, BASE::EventLoopEngine* engine, const ConnectionCallbacks* cbs);
+    bool init(SocketPtr socket, BASE::EventLoopEngine* engine, const ConnectionCallbacks* cbs, Codec* codec);
 
     bool send(const std::string& data);
 
@@ -60,6 +57,7 @@ private:
     Buffer                     _recv_buf;
     Buffer                     _send_buf;
     const ConnectionCallbacks* _cbs_ptr    = nullptr;
+    Codec*                     _codec      = nullptr;   // 所有权归 Server,这里只用不持有
     CloseCb                    _sys_close_cb;
 
     // 对端已 EOF、但 _send_buf 还有没发完的数据:等 handle_write drain 到 0 再真正关

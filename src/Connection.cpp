@@ -1,4 +1,5 @@
 #include "Connection.h"
+#include "Codec.h"
 #include "EventLoop/EventLoopEngine.h"
 #include "GstLog.h"
 #include <cerrno>
@@ -6,13 +7,14 @@
 namespace GST {
 namespace NET {
 
-bool Connection::init(SocketPtr socket, BASE::EventLoopEngine* engine, const ConnectionCallbacks* cbs) {
-    if (!socket || !socket->is_avai()) {
+bool Connection::init(SocketPtr socket, BASE::EventLoopEngine* engine, const ConnectionCallbacks* cbs, Codec* codec) {
+    if (!socket || !socket->is_avai() || !codec) {
         return false;
     }
     _socket = socket;
     _cbs_ptr = cbs;
     _owner_engine = engine;
+    _codec = codec;
     return true;
 }
 
@@ -24,19 +26,16 @@ bool Connection::send(const std::string& data) {
     // self 把连接续命到任务执行结束;data 按值拷贝进任务,避免异步执行时形参引用悬空
     auto self = shared_from_this();
     _owner_engine->run_in_loop([this, self, data]() {
-        // 添加一个长度信息用于拆包分包
-        uint32_t net_len = htonl(data.size());
-        std::string framed;
-        framed.reserve(4 + data.size());
-        framed.append(reinterpret_cast<const char*>(&net_len), 4);
-        framed.append(data);
+        // 编解码交给 codec:一条消息 -> 一个含长度头的完整帧
+        Buffer frame = _codec->encode(data);
+        std::string_view view = frame.peek();
 
         if (_send_buf.readable_bytes() > 0) {
-            _send_buf.write(framed);
+            _send_buf.write(view.data(), view.size());
             return;
         }
 
-        int n = _socket->send(framed.data(), framed.size());
+        int n = _socket->send(view.data(), view.size());
         if (n < 0) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 return;
@@ -45,8 +44,8 @@ bool Connection::send(const std::string& data) {
         }
 
         size_t sent = static_cast<size_t>(n);
-        if (sent < framed.size()) {
-            _send_buf.write(framed.data() + sent, framed.size() - sent);
+        if (sent < view.size()) {
+            _send_buf.write(view.data() + sent, view.size() - sent);
             // 注册写关注;回调里用 weak 观察连接,不僭越所有权
             std::weak_ptr<Connection> weak = weak_from_this();
             _owner_engine->enable_write(_socket, [weak](int) {
@@ -110,29 +109,16 @@ void Connection::handle_read() {
     if (!_cbs_ptr || !_cbs_ptr->message_cb) {
         return;
     }
-    while (_recv_buf.readable_bytes() > 0) {
-        if (_recv_buf.readable_bytes() < 4) {
-            DEBUG("header incomplete, waiting: have %zu bytes", _recv_buf.readable_bytes());
+    while (true) {
+        auto [status, msg] = _codec->decode(_recv_buf);
+        if (status == DecodeStatus::NEED_MORE) {
             break;
         }
-
-        uint32_t body_length = 0;
-        std::memcpy(&body_length, _recv_buf.peek().data(), 4);
-        body_length = ntohl(body_length);
-
-        if (body_length > MAX_MESSAGE_SIZE) {
-            WARN("body_length=%u exceeds MAX_MESSAGE_SIZE, closing connection", body_length);
+        if (status == DecodeStatus::BAD) {
+            WARN("bad frame fd=%d, closing connection", _socket->fd());
             handle_close();
-            return;
+            return;   // handle_close 后 this 可能即死,本路径到此为止
         }
-
-        if (_recv_buf.readable_bytes() < 4 + body_length) {
-            DEBUG("body incomplete, need %u have %zu bytes", 4 + body_length, _recv_buf.readable_bytes());
-            break;
-        }
-
-        std::string msg(_recv_buf.peek().substr(4, body_length));
-        _recv_buf.consume(4 + body_length);
         _cbs_ptr->message_cb(shared_from_this(), std::move(msg));
     }
 }

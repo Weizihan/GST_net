@@ -4,6 +4,7 @@
 #include <mutex>
 #include <functional>
 #include <string>
+#include <memory>
 
 #include "Socket.h"
 #include "ServerEventLoop.h"
@@ -52,6 +53,7 @@ private:
     GST::BASE::ThreadPool _thread_pool;
     ConnectCb           _connect_cb;
     ConnectionCallbacks _shared_cbs;
+    std::unique_ptr<Codec> _codec;   // 全连接共享一份;无状态,未来可换用户自定义协议
     std::mutex          _conn_mutex;
     std::unordered_map<int, ConnectionPtr> _connections;
 };
