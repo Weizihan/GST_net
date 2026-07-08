@@ -39,3 +39,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 file(GLOB EXAMPLE_SRC "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
 add_executable(main ${EXAMPLE_SRC})
 target_link_libraries(main PRIVATE GST_net)
+
+add_executable(test_tcpclient tests/test_tcpclient.cpp)
+target_link_libraries(test_tcpclient PRIVATE GST_net)

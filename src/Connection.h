@@ -22,6 +22,7 @@ struct ConnectionCallbacks {
 
 class Connection : public std::enable_shared_from_this<Connection> {
     friend class Server;
+    friend class TcpClient;
 
 public:
     using MessageCb = std::function<void(ConnectionPtr, std::string)>;

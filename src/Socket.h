@@ -35,6 +35,8 @@ public:
     
     int fd() const override;
     bool init(SockOption opt);
+    // 客户端建连:阻塞握手,成功后转 O_NONBLOCK 再交给 engine
+    bool connect(const std::string& ip, int port);
     std::shared_ptr<Socket> new_client();
     int send(const char* data, size_t len);
     int recv(std::string& msg);

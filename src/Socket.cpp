@@ -57,6 +57,35 @@ int Socket::fd() const {
     return _sock_fd;
 }
 
+bool Socket::connect(const std::string& ip, int port) {
+    // 必须阻塞态建 socket:非阻塞 fd 调 connect 会立刻返 EINPROGRESS,就被迫走异步那套了
+    _sock_fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (_sock_fd < 0) {
+        return false;
+    }
+
+    sockaddr_in addr = { 0 };
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    if (::inet_pton(AF_INET, ip.c_str(), &addr.sin_addr) != 1) {
+        ::close(_sock_fd);
+        _sock_fd = -1;
+        return false;
+    }
+
+    // 对端不可达时会阻塞到内核 SYN 重试耗尽(默认约两分钟),超时控制等定时器就位再做
+    if (::connect(_sock_fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
+        WARN("connect %s:%d failed: %s", ip.c_str(), port, std::strerror(errno));
+        ::close(_sock_fd);
+        _sock_fd = -1;
+        return false;
+    }
+
+    // 握手完成后才转非阻塞:engine 里跑的 fd 必须 O_NONBLOCK
+    ::fcntl(_sock_fd, F_SETFL, O_NONBLOCK);
+    return true;
+}
+
 SocketPtr Socket::new_client() {
     if (!is_avai()) {
         return nullptr;
