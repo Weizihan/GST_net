@@ -57,19 +57,26 @@ void Server::on_new_connection() {
         _connections.erase(client_fd);
     });
 
-    std::weak_ptr<Connection> weak = conn;
-    if ( !engine->add_fd_callback(client, [weak](int) {
-        if (auto c = weak.lock()) {
-            c->handle_read();
-        }
-    })) {
-        ERROR("failed add %d callback", client->fd());
-    }
-
     {
         std::lock_guard<std::mutex> lock(_conn_mutex);
         _connections[client_fd] = conn;
     }
+
+    std::weak_ptr<Connection> weak = conn;
+    auto* raw_engine = engine.get();
+    engine->run_in_loop([raw_engine, client, weak]() {
+        if (raw_engine->add_fd_callback(client, [weak](int) {
+            if (auto c = weak.lock()) {
+                c->handle_read();
+            }
+        })) {
+            return;
+        }
+        ERROR("failed add %d callback", client->fd());
+        if (auto c = weak.lock()) {
+            c->handle_close();
+        }
+    });
 
     INFO("new connection fd=%d", client_fd);
 
